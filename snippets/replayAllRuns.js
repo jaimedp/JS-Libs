@@ -1,28 +1,30 @@
+function replayAll(group) {
 
-F.API.Auth.getUserInfo(function(data){
-    F.API.UserGroup.getInfo(data.userGroup.name, function(user){
+    F.API.UserGroup.getInfo(group, function(user){
         var userEmail = [];
         var userList = [];
 		for(var i=0; i< user.group.users.length; i++){
 			if(!user.group.users[i].facilitator){
-				userList.push(user.group.users[i].path)
-				userEmail.push(user.group.users[i].email)
+				userList.push(user.group.users[i].path);
+				userEmail.push(user.group.users[i].email);
 			}
 		}
-		console.log(userList)
+
+		console.log(userList);
 		var startImpersonating = function(){
 			var firstUser = userList.pop();
 			var email = userEmail.pop();
 			console.log("Initializing " + firstUser + ". " + userList.length + " users remaining.");
 			if(firstUser){
-				
+
 				F.API.Auth.impersonate(firstUser, "", function(){
-					F.API.Archive.getRuns("saved=true&variables=^$&facilitator=false&user_email="+email, function(blah,data){
-						var runs = []
+					F.API.Archive.getRuns("saved=true&variables=^metric8$&facilitator=false&user_email="+email, function(blah,data){
+						var runs = [];
 						for(var i=0; i< data.run.length; i++){
-							runs.push(data.run[i].runId)
+                            if(data.run[i].values[0].result)
+							runs.push(data.run[i].runId);
 						}
-						
+
 						console.log("found",runs.length, "runs" );
 						var start = function(){
 							var firstRun = runs.pop();
@@ -30,23 +32,26 @@ F.API.Auth.getUserInfo(function(data){
 							if(firstRun){
 									F.API.Run.doActions("resume", firstRun, function(){
 										F.API.Run.doActions("replay", firstRun, function(){
-											F.API.Run.setProperties({saved:true}, start)
+											// F.API.Run.setProperties({saved:true, endTime: 25}, start);
+                                            start();
 										});
-									})
+									});
 							}
 							else{
 								console.log("All runs complete for", firstUser);
-								F.API.Auth.unimpersonate(startImpersonating)
+								F.API.Auth.unimpersonate(startImpersonating);
 							}
-						}
-						start()
-					})
+						};
+
+						start();
+					});
 				});
 			}
 			else{
 				console.log("All users done");
 			}
-		}
-		F.API.UserGroup.resetRunLimit(null,startImpersonating)
-	})
-})
+		};
+
+		F.API.UserGroup.resetRunLimit(null,startImpersonating);
+	});
+}
